@@ -4,7 +4,9 @@
 
 ## تنزيل APK على الهاتف
 
-بعد كل رفع للمصدر، ينفّذ GitHub Actions اختبارات وحدة الدماغ ويبني APK تجريبيًا. افتح تبويب **Actions** في المستودع، ثم آخر تشغيل ناجح باسم **Android debug APK**، ونزّل الملف `OkeyBot-debug-apk` وفك ضغطه وثبّت `app-debug.apk` على هاتفك. قد يطلب Android السماح بالتثبيت من هذا المصدر.
+**تنزيل مباشر:** [OkeyBot-debug.apk](https://github.com/jdjj47090-sketch/okeybot-android/releases/download/v0.1.0-demo/app-debug.apk) من [الإصدار التجريبي](https://github.com/jdjj47090-sketch/okeybot-android/releases/tag/v0.1.0-demo). نزّل الملف على الهاتف وثبّته؛ قد يطلب Android السماح بالتثبيت من هذا المصدر.
+
+بعد كل رفع للمصدر، ينفّذ GitHub Actions اختبارات الدماغ ويبني APK جديدًا. يمكن تنزيل أحدث بناء من تبويب **Actions** في المستودع عبر artifact باسم `OkeyBot-debug-apk`.
 
 ## البناء محليًا
 
