@@ -24,9 +24,10 @@ data class LayoutDetection(
 object LayoutDetector {
     fun detect(rgba: Mat): LayoutDetection {
         if (rgba.empty()) return LayoutDetection()
-        val hsv = Mat(); val whiteMask = Mat(); val colorMask = Mat(); val kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, Size(3.0, 3.0))
+        val rgb = Mat(); val hsv = Mat(); val whiteMask = Mat(); val colorMask = Mat(); val kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, Size(3.0, 3.0))
         try {
-            Imgproc.cvtColor(rgba, hsv, Imgproc.COLOR_RGBA2HSV)
+            Imgproc.cvtColor(rgba, rgb, Imgproc.COLOR_RGBA2RGB)
+            Imgproc.cvtColor(rgb, hsv, Imgproc.COLOR_RGB2HSV)
             Core.inRange(hsv, Scalar(0.0, 0.0, 158.0), Scalar(180.0, 108.0, 255.0), whiteMask)
             Core.inRange(hsv, Scalar(0.0, 78.0, 75.0), Scalar(180.0, 255.0, 255.0), colorMask)
             Imgproc.morphologyEx(whiteMask, whiteMask, Imgproc.MORPH_CLOSE, kernel)
@@ -52,7 +53,7 @@ object LayoutDetector {
                     else -> "No confident layout; manual calibration is available"
                 }
             )
-        } finally { hsv.release(); whiteMask.release(); colorMask.release(); kernel.release() }
+        } finally { rgb.release(); hsv.release(); whiteMask.release(); colorMask.release(); kernel.release() }
     }
 
     private fun rectangles(mask: Mat): List<RectF> {
