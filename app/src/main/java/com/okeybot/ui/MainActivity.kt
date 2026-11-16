@@ -29,7 +29,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         render()
-        ScreenVision.listener = { observation -> runOnUiThread { status.text = "Vision: ${observation.state} — ${observation.reason}" } }
+        ScreenVision.listener = { observation -> runOnUiThread { status.text = if (arabicUi()) "الحالة · ${observation.state} — ${observation.reason}" else "STATUS · ${observation.state} — ${observation.reason}" } }
     }
 
     override fun onStart() { super.onStart(); ScreenVision.activityStarted() }
@@ -110,33 +110,59 @@ class MainActivity : Activity() {
             .putExtra(ProjectionService.EXTRA_DATA, data)
         if (Build.VERSION.SDK_INT >= 26) startForegroundService(serviceIntent) else startService(serviceIntent)
         startService(Intent(this, StopOverlayService::class.java))
-        status.text = "Capture active; waiting for calibrated screen recognition."
+        status.text = if (arabicUi()) "الحالة · الالتقاط يعمل، بانتظار معايرة الشاشة" else "STATUS · CAPTURE ACTIVE · WAITING FOR CALIBRATION"
     }
 
     private fun render() {
+        val ar = arabicUi()
         val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(24, 32, 24, 24)
-            setBackgroundColor(0xFFF3F1EA.toInt())
+            orientation = LinearLayout.VERTICAL; UiKit.rtl(this, ar)
+            setPadding(UiKit.dp(this@MainActivity, 22), UiKit.dp(this@MainActivity, 18), UiKit.dp(this@MainActivity, 22), UiKit.dp(this@MainActivity, 26))
+            setBackgroundColor(UiKit.BG)
         }
-        root.addView(TextView(this).apply { text = "OkeyBot"; textSize = 30f; setTextColor(0xFF173A32.toInt()) })
-        status = TextView(this).apply { text = "Checking required permissions…"; textSize = 16f; setPadding(8, 24, 8, 24) }
-        root.addView(status)
-        button(root, "Start screen capture") { requestProjectionPermission() }
-        button(root, "Stop") { ProjectionService.stop(this); stopService(Intent(this, StopOverlayService::class.java)); status.text = "Stopped" }
-        button(root, "Calibrate regions") { startActivity(Intent(this, CalibrationActivity::class.java)) }
-        button(root, "Accessibility setup") { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-        button(root, "Allow floating stop button") {
+        val scroll = ScrollView(this).apply { clipToPadding = false; addView(root) }
+        val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; UiKit.rtl(this, ar) }
+        val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; layoutParams = LinearLayout.LayoutParams(0, -2, 1f) }
+        brand.addView(UiKit.text(this, if (ar) "أوكي بوت" else "OkeyBot", 28f, UiKit.INK, true))
+        brand.addView(UiKit.text(this, if (ar) "مساعد اللعب الذكي" else "Your tabletop companion", 13f, UiKit.MUTED))
+        top.addView(brand)
+        val language = UiKit.action(this, if (ar) "EN" else "عربي", false) {
+            getSharedPreferences("ui", 0).edit().putString("language", if (ar) "en" else "ar").apply(); render()
+        }.apply { minWidth = UiKit.dp(this@MainActivity, 64); minHeight = UiKit.dp(this@MainActivity, 44) }
+        top.addView(language)
+        root.addView(top, UiKit.margin(this, 22))
+
+        val hero = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; UiKit.rtl(this, ar); setPadding(UiKit.dp(this@MainActivity, 20), UiKit.dp(this@MainActivity, 20), UiKit.dp(this@MainActivity, 20), UiKit.dp(this@MainActivity, 20))
+            background = UiKit.panel(this@MainActivity, 0xFF173A32.toInt(), 24)
+        }
+        val badge = TextView(this).apply { text = if (ar) "●  جاهز للاتصال" else "●  READY TO CONNECT"; textSize = 12f; setTextColor(0xFFB5D8A8.toInt()); setPadding(0, 0, 0, UiKit.dp(this@MainActivity, 12)) }
+        hero.addView(badge)
+        hero.addView(UiKit.text(this, if (ar) "خلّ اللعب يمشي." else "Let the game flow.", 23f, 0xFFFFFEF9.toInt(), true))
+        hero.addView(UiKit.text(this, if (ar) "عاير الشاشة أولًا، ثم ابدأ الالتقاط. لن ينفّذ التطبيق حركة على شاشة غير معروفة." else "Calibrate your table, then start capture. Unknown screens are never tapped.", 14f, 0xFFD1DED4.toInt()).apply { setPadding(0, UiKit.dp(this@MainActivity, 5), 0, UiKit.dp(this@MainActivity, 4)) })
+        status = UiKit.text(this, if (ar) "الحالة · بانتظار الصلاحيات" else "STATUS · WAITING FOR PERMISSIONS", 12f, 0xFFAED2A2.toInt(), true).apply { setPadding(0, UiKit.dp(this@MainActivity, 12), 0, 0) }
+        hero.addView(status)
+        root.addView(hero, UiKit.margin(this, 20))
+
+        root.addView(UiKit.text(this, if (ar) "لوحة التحكم" else "CONTROL DESK", 12f, UiKit.MUTED, true), UiKit.margin(this, 8))
+        root.addView(UiKit.action(this, if (ar) "بدء التقاط الشاشة" else "Start screen capture", true) { requestProjectionPermission() }, UiKit.margin(this, 10))
+        root.addView(UiKit.action(this, if (ar) "معايرة مناطق اللعب" else "Calibrate play areas", false) { startActivity(Intent(this, CalibrationActivity::class.java)) }, UiKit.margin(this, 18))
+
+        root.addView(UiKit.text(this, if (ar) "الأدوات" else "TOOLS", 12f, UiKit.MUTED, true), UiKit.margin(this, 8))
+        val tools = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; UiKit.rtl(this, ar); setPadding(UiKit.dp(this@MainActivity, 14), UiKit.dp(this@MainActivity, 8), UiKit.dp(this@MainActivity, 14), UiKit.dp(this@MainActivity, 2)); background = UiKit.panel(this@MainActivity) }
+        fun tool(label: String, action: () -> Unit) {
+            val row = TextView(this).apply { text = label; textSize = 15f; setTextColor(UiKit.INK); gravity = if (ar) Gravity.RIGHT or Gravity.CENTER_VERTICAL else Gravity.LEFT or Gravity.CENTER_VERTICAL; setPadding(UiKit.dp(this@MainActivity, 7), 0, UiKit.dp(this@MainActivity, 7), 0); minHeight = UiKit.dp(this@MainActivity, 48); isClickable = true; setOnClickListener { action() } }
+            tools.addView(row, UiKit.margin(this, 2))
+        }
+        tool(if (ar) "سجل التحليل" else "Analysis log") { startActivity(Intent(this, LogActivity::class.java)) }
+        tool(if (ar) "خدمات إمكانية الوصول" else "Accessibility settings") { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+        tool(if (ar) "إظهار زر الإيقاف العائم" else "Show floating stop button") {
             if (!Settings.canDrawOverlays(this)) startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
             else startService(Intent(this, StopOverlayService::class.java))
         }
-        button(root, "Show analysis log") { startActivity(Intent(this, LogActivity::class.java)) }
-        setContentView(ScrollView(this).apply { addView(root) })
-    }
-
-    private fun button(parent: LinearLayout, title: String, action: () -> Unit) {
-        parent.addView(Button(this).apply { text = title; setOnClickListener { action() } }, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 8 })
+        root.addView(tools, UiKit.margin(this, 12))
+        root.addView(UiKit.action(this, if (ar) "إيقاف الالتقاط" else "Stop capture", false) { ProjectionService.stop(this); stopService(Intent(this, StopOverlayService::class.java)); status.text = if (ar) "الحالة · متوقف" else "STATUS · STOPPED" }, UiKit.margin(this, 8))
+        setContentView(scroll)
     }
 
     @Deprecated("Permission callback for the required launch gate")

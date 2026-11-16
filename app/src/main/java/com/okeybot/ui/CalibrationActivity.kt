@@ -23,22 +23,19 @@ class CalibrationActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = CalibrationStore(this)
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        root.addView(TextView(this).apply {
-            text = "Keep the game open while capture runs, then return here. Green boxes are detected rack tiles; cyan is a suggested draw area. Review before saving. Tap to set remaining regions manually."
-            textSize = 15f; setPadding(16, 12, 16, 12)
-        })
+        val ar = arabicUi()
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; UiKit.rtl(this, ar); setPadding(UiKit.dp(this@CalibrationActivity, 18), UiKit.dp(this@CalibrationActivity, 16), UiKit.dp(this@CalibrationActivity, 18), UiKit.dp(this@CalibrationActivity, 14)); setBackgroundColor(UiKit.BG) }
+        root.addView(UiKit.text(this, if (ar) "معايرة الطاولة" else "Table calibration", 25f, UiKit.INK, true))
+        root.addView(UiKit.text(this, if (ar) "عاين الاقتراحات على لقطة اللعبة، ثم احفظها أو حدّد المناطق يدويًا." else "Review the suggestions over your game frame, then save them or mark regions manually.", 14f, UiKit.MUTED).apply { setPadding(0, UiKit.dp(this@CalibrationActivity, 4), 0, UiKit.dp(this@CalibrationActivity, 10)) })
         canvasView = Preview()
-        root.addView(canvasView, LinearLayout.LayoutParams(-1, 0, 1f))
-        root.addView(LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            addView(Button(this@CalibrationActivity).apply { text = "Use detected rack"; setOnClickListener { saveAuto(Region.RACK) } }, LinearLayout.LayoutParams(0, -2, 1f))
-            addView(Button(this@CalibrationActivity).apply { text = "Use draw suggestion"; setOnClickListener { saveAuto(Region.DRAW_PILE) } }, LinearLayout.LayoutParams(0, -2, 1f))
-        })
-        root.addView(Button(this).apply {
-            text = "Reset calibration"
-            setOnClickListener { getSharedPreferences("calibration", 0).edit().clear().apply(); rackFirst = null; canvasView.invalidate() }
-        })
+        val previewFrame = LinearLayout(this).apply { background = UiKit.panel(this@CalibrationActivity, 0xFF202A26.toInt(), 20); setPadding(UiKit.dp(this@CalibrationActivity, 3), UiKit.dp(this@CalibrationActivity, 3), UiKit.dp(this@CalibrationActivity, 3), UiKit.dp(this@CalibrationActivity, 3)) }
+        previewFrame.addView(canvasView, LinearLayout.LayoutParams(-1, -1))
+        root.addView(previewFrame, LinearLayout.LayoutParams(-1, 0, 1f).apply { bottomMargin = UiKit.dp(this@CalibrationActivity, 12) })
+        val autoRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; UiKit.rtl(this, ar) }
+        autoRow.addView(UiKit.action(this, if (ar) "حفظ الرف" else "Save rack", true) { saveAuto(Region.RACK) }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = UiKit.dp(this@CalibrationActivity, 6) })
+        autoRow.addView(UiKit.action(this, if (ar) "حفظ السحب" else "Save draw", false) { saveAuto(Region.DRAW_PILE) }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = UiKit.dp(this@CalibrationActivity, 6) })
+        root.addView(autoRow, UiKit.margin(this, 8))
+        root.addView(UiKit.action(this, if (ar) "مسح المعايرة" else "Reset calibration", false) { getSharedPreferences("calibration", 0).edit().clear().apply(); rackFirst = null; canvasView.invalidate() }, UiKit.margin(this, 2))
         setContentView(root)
     }
 
@@ -72,7 +69,7 @@ class CalibrationActivity : Activity() {
             val frame = ScreenVision.latestFrame
             if (frame == null) {
                 paint.color = Color.WHITE; paint.style = Paint.Style.FILL
-                canvas.drawText("No game frame yet — show the game with capture running first", 16f, 32f, paint)
+                canvas.drawText(if (arabicUi()) "لا توجد لقطة بعد — افتح اللعبة وشغّل الالتقاط" else "No game frame yet — start capture with the game open", 16f, 32f, paint)
                 return
             }
             val scale = minOf(width.toFloat() / frame.width, height.toFloat() / frame.height)
@@ -92,8 +89,8 @@ class CalibrationActivity : Activity() {
             }
             paint.style = Paint.Style.FILL; paint.color = Color.WHITE
             val missing = sequence.firstOrNull { store.get(it) == null }
-            val label = missing?.name ?: "complete"
-            canvas.drawText("Next: $label | rack ${ScreenVision.latestLayout.rackTiles.size} | draw confidence ${"%.2f".format(ScreenVision.latestLayout.drawConfidence)}", 12f, height - 18f, paint)
+            val label = missing?.let { if (!arabicUi()) it.name else when (it) { Region.RACK -> "الرف"; Region.DRAW_PILE -> "السحب"; Region.DISCARD -> "الرمي"; Region.INDICATOR -> "المؤشر" } } ?: if (arabicUi()) "مكتملة" else "complete"
+            canvas.drawText(if (arabicUi()) "التالي: $label · بلاطات ${ScreenVision.latestLayout.rackTiles.size} · ثقة السحب ${"%.2f".format(ScreenVision.latestLayout.drawConfidence)}" else "Next: $label | rack ${ScreenVision.latestLayout.rackTiles.size} | draw confidence ${"%.2f".format(ScreenVision.latestLayout.drawConfidence)}", 12f, height - 18f, paint)
         }
 
         override fun onTouchEvent(event: MotionEvent): Boolean {
