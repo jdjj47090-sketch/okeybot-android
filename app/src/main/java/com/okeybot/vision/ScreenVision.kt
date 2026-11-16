@@ -20,8 +20,11 @@ object ScreenVision {
     @Volatile var debugImages = false
     @Volatile var latestLayout = LayoutDetection()
     @Volatile var appUiVisible = false
+    private val visibleActivities = java.util.concurrent.atomic.AtomicInteger(0)
     @Volatile var listener: ((ScreenObservation) -> Unit)? = null
     private val openCvReady by lazy { runCatching { OpenCVLoader.initLocal() }.getOrDefault(false) }
+    fun activityStarted() { appUiVisible = visibleActivities.incrementAndGet() > 0 }
+    fun activityStopped() { appUiVisible = visibleActivities.updateAndGet { (it - 1).coerceAtLeast(0) } > 0 }
     fun onFrame(context: Context, bitmap: Bitmap) {
         if (appUiVisible) return // Keep the last game frame while OkeyBot's calibration/log UI is open.
         val previous = latestFrame

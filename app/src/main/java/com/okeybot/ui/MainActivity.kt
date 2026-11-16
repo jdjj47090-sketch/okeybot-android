@@ -32,9 +32,11 @@ class MainActivity : Activity() {
         ScreenVision.listener = { observation -> runOnUiThread { status.text = "Vision: ${observation.state} — ${observation.reason}" } }
     }
 
+    override fun onStart() { super.onStart(); ScreenVision.activityStarted() }
+    override fun onStop() { ScreenVision.activityStopped(); super.onStop() }
+
     override fun onResume() {
         super.onResume()
-        ScreenVision.appUiVisible = true
         val returnedPermission = pendingSettingsPermission
         if (returnedPermission != null) {
             pendingSettingsPermission = null
@@ -51,8 +53,6 @@ class MainActivity : Activity() {
             window.decorView.post { continuePermissionFlow() }
         }
     }
-
-    override fun onPause() { ScreenVision.appUiVisible = false; super.onPause() }
 
     private fun continuePermissionFlow() {
         if (isFinishing || isDestroyed || awaitingNotificationResult || awaitingProjectionResult) return

@@ -17,8 +17,8 @@ class CalibrationActivity : Activity() {
     private val sequence = Region.values().toList()
     private var rackFirst: PointF? = null
 
-    override fun onResume() { super.onResume(); ScreenVision.appUiVisible = true }
-    override fun onPause() { ScreenVision.appUiVisible = false; super.onPause() }
+    override fun onStart() { super.onStart(); ScreenVision.activityStarted() }
+    override fun onStop() { ScreenVision.activityStopped(); super.onStop() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
