@@ -1,29 +1,27 @@
 # OkeyBot
 
-Android app (Kotlin) that watches the screen and plays your own Okey game with touch gestures, for a screen-recorded demo.
+مشروع أندرويد تجريبي بلغة Kotlin للعبة Okey. يتضمن محلّلًا مستقلًا لقواعد اللعبة ووحدة أندرويد لالتقاط الشاشة والمعايرة وإيماءات إمكانية الوصول.
 
-## Status
+## تنزيل APK على الهاتف
 
-- [x] Milestone 1: game brain + unit tests (`brain` module, pure Kotlin/JVM)
-- [ ] Milestone 2: screen capture + tile detection (needs screenshots of your game)
-- [ ] Milestone 3: calibration screen
-- [ ] Milestone 4: AccessibilityService gestures
-- [ ] Milestone 5: full game loop
-- [ ] Milestone 6: polish, overlay stop button, full README
+بعد كل رفع للمصدر، ينفّذ GitHub Actions اختبارات وحدة الدماغ ويبني APK تجريبيًا. افتح تبويب **Actions** في المستودع، ثم آخر تشغيل ناجح باسم **Android debug APK**، ونزّل الملف `OkeyBot-debug-apk` وفك ضغطه وثبّت `app-debug.apk` على هاتفك. قد يطلب Android السماح بالتثبيت من هذا المصدر.
 
-## Run the tests (Milestone 1)
+## البناء محليًا
 
-Requires JDK 17+ and Gradle. First time only, create the wrapper:
+يتطلب JDK 21 وAndroid SDK Platform 35:
 
-    gradle wrapper --gradle-version 8.7
-    ./gradlew :brain:test
+```sh
+./gradlew :brain:test
+./gradlew assembleDebug
+```
 
-## Rules implemented
+## إعداد التطبيق
 
-- 106 tiles: 4 colors x 1..13 x 2, plus 2 fake jokers.
-- Okey = indicator color, number + 1 (13 wraps to 1). Real Okey tiles are wild.
-  The fake joker is a normal tile that takes the Okey's color and number.
-- Runs: 3+ consecutive, same color. 12-13-1 is optional (`RulesConfig.allowWrapRuns`).
-- Groups: 3-4 tiles, same number, different colors.
-- `Solver` finds the arrangement with the fewest unmatched tiles (memoized backtracking).
-- `Strategy` takes the discard only if it strictly reduces unmatched tiles, and discards the tile that leaves the best hand (never the wild unless forced).
+1. افتح التطبيق وفعّل خدمة OkeyBot من إعدادات إمكانية الوصول.
+2. ابدأ مشاركة الشاشة ووافق على نافذة Android.
+3. عاير مواقع الرف ومكدس السحب والرمي والمؤشر من شاشة المعايرة.
+4. اسمح بالنافذة العائمة إذا أردت زر إيقاف ظاهرًا.
+
+## الحالة الحالية
+
+اختبارات الدماغ تمر. اكتشاف البلاطات وحالات اللعبة يحتاج صورًا من واجهة لعبتك لضبط القوالب. إلى أن يكتمل ذلك، يتعامل التطبيق مع الشاشة على أنها غير معروفة ولا ينفّذ نقرات اللعب. بناء APK على GitHub متاح عبر سير العمل أعلاه، لكن صلاحية الكشف واللعب التلقائي لم تُنجز بعد.

@@ -12,4 +12,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "okeybot"
-include(":brain")
+include(":brain", ":app")
