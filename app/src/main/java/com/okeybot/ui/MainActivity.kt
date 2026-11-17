@@ -25,11 +25,28 @@ class MainActivity : Activity() {
     private var pendingSettingsPermission: String? = null
     private var awaitingNotificationResult = false
     private var awaitingProjectionResult = false
+    private var projectionRequestedFromOverlay = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         render()
+        if (intent?.action == ACTION_CAPTURE_FROM_OVERLAY) {
+            permissionFlowStarted = true
+            window.decorView.post { handleOverlayCaptureRequest() }
+        }
         ScreenVision.listener = { observation -> runOnUiThread { status.text = if (arabicUi()) "الحالة · ${observation.state} — ${observation.reason}" else "STATUS · ${observation.state} — ${observation.reason}" } }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.action == ACTION_CAPTURE_FROM_OVERLAY) handleOverlayCaptureRequest()
+    }
+
+    private fun handleOverlayCaptureRequest() {
+        projectionRequestedFromOverlay = true
+        if (preProjectionPermissionsGranted()) requestProjectionPermission()
+        else continuePermissionFlow()
     }
 
     override fun onStart() { super.onStart(); ScreenVision.activityStarted() }
@@ -181,10 +198,13 @@ class MainActivity : Activity() {
         if (requestCode != projectionRequest) return
         awaitingProjectionResult = false
         if (resultCode == RESULT_OK && data != null && preProjectionPermissionsGranted()) startCapture(resultCode, data)
+        else if (projectionRequestedFromOverlay) Toast.makeText(this, if (arabicUi()) "لم يبدأ الالتقاط" else "Capture was not started", Toast.LENGTH_SHORT).show()
         else exitForMissingPermission()
+        projectionRequestedFromOverlay = false
     }
 
     companion object {
+        const val ACTION_CAPTURE_FROM_OVERLAY = "com.okeybot.CAPTURE_FROM_OVERLAY"
         private const val REQUEST_NOTIFICATIONS = 72
         private const val PERMISSION_OVERLAY = "overlay"
         private const val PERMISSION_ACCESSIBILITY = "accessibility"

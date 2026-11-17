@@ -21,14 +21,24 @@ class ProjectionService : Service() {
     private var lastFrame = 0L
     override fun onBind(intent: Intent?) = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) { stopSelf(); return START_NOT_STICKY }
+        when (intent?.action) {
+            ACTION_STOP -> { isRunning = false; isPaused = false; stopSelf(); return START_NOT_STICKY }
+            ACTION_PAUSE -> {
+                if (isRunning && !isPaused) { display?.setSurface(null); isPaused = true; updateNotification() }
+                return START_NOT_STICKY
+            }
+            ACTION_RESUME -> {
+                if (isRunning && isPaused) { display?.setSurface(reader?.surface); isPaused = false; updateNotification() }
+                return START_NOT_STICKY
+            }
+        }
         startForeground(NOTIFICATION_ID, notification())
         val result = intent?.getIntExtra(EXTRA_RESULT, Activity.RESULT_CANCELED) ?: Activity.RESULT_CANCELED
         @Suppress("DEPRECATION") val data = intent?.getParcelableExtra<Intent>(EXTRA_DATA)
         if (result != Activity.RESULT_OK || data == null) { stopSelf(); return START_NOT_STICKY }
         val mgr = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         projection = mgr.getMediaProjection(result, data)
-        projection?.registerCallback(object : MediaProjection.Callback() { override fun onStop() { stopSelf() } }, Handler(Looper.getMainLooper()))
+        projection?.registerCallback(object : MediaProjection.Callback() { override fun onStop() { isRunning = false; isPaused = false; stopSelf() } }, Handler(Looper.getMainLooper()))
         val metrics = resources.displayMetrics
         reader = ImageReader.newInstance(metrics.widthPixels, metrics.heightPixels, PixelFormat.RGBA_8888, 2)
         reader?.setOnImageAvailableListener({ source ->
@@ -44,17 +54,32 @@ class ProjectionService : Service() {
             } finally { image.close() }
         }, Handler(Looper.getMainLooper()))
         display = projection?.createVirtualDisplay("OkeyBotCapture", metrics.widthPixels, metrics.heightPixels, metrics.densityDpi, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, reader?.surface, null, null)
+        isPaused = false
+        isRunning = true
+        updateNotification()
         return START_NOT_STICKY
     }
     private fun notification(): Notification {
         val channel = "capture"
         if (Build.VERSION.SDK_INT >= 26) getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel(channel, "Screen capture", NotificationManager.IMPORTANCE_LOW))
         val stop = PendingIntent.getService(this, 1, Intent(this, ProjectionService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        return Notification.Builder(this, channel).setSmallIcon(android.R.drawable.ic_menu_view).setContentTitle("OkeyBot capture active").setContentText("Screen analysis running").addAction(Notification.Action.Builder(null, "Stop", stop).build()).setOngoing(true).build()
+        val pauseAction = if (isPaused) ACTION_RESUME else ACTION_PAUSE
+        val toggle = PendingIntent.getService(this, 2, Intent(this, ProjectionService::class.java).setAction(pauseAction), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        return Notification.Builder(this, channel).setSmallIcon(android.R.drawable.ic_menu_view)
+            .setContentTitle(if (isPaused) "OkeyBot capture paused" else "OkeyBot capture active")
+            .setContentText(if (isPaused) "Screen analysis paused" else "Screen analysis running")
+            .addAction(Notification.Action.Builder(null, if (isPaused) "Resume" else "Pause", toggle).build())
+            .addAction(Notification.Action.Builder(null, "Stop", stop).build()).setOngoing(true).build()
     }
-    override fun onDestroy() { display?.release(); reader?.close(); projection?.stop(); super.onDestroy() }
+    private fun updateNotification() { getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification()) }
+    override fun onDestroy() { isRunning = false; isPaused = false; display?.release(); reader?.close(); projection?.stop(); super.onDestroy() }
     companion object {
-        const val EXTRA_RESULT = "projection_result"; const val EXTRA_DATA = "projection_data"; const val ACTION_STOP = "com.okeybot.STOP_CAPTURE"; private const val NOTIFICATION_ID = 61
+        const val EXTRA_RESULT = "projection_result"; const val EXTRA_DATA = "projection_data"
+        const val ACTION_STOP = "com.okeybot.STOP_CAPTURE"; private const val ACTION_PAUSE = "com.okeybot.PAUSE_CAPTURE"; private const val ACTION_RESUME = "com.okeybot.RESUME_CAPTURE"; private const val NOTIFICATION_ID = 61
+        @Volatile var isRunning: Boolean = false; private set
+        @Volatile var isPaused: Boolean = false; private set
         fun stop(context: Context) { context.startService(Intent(context, ProjectionService::class.java).setAction(ACTION_STOP)) }
+        fun pause(context: Context) { if (isRunning) context.startService(Intent(context, ProjectionService::class.java).setAction(ACTION_PAUSE)) }
+        fun resume(context: Context) { if (isRunning) context.startService(Intent(context, ProjectionService::class.java).setAction(ACTION_RESUME)) }
     }
 }

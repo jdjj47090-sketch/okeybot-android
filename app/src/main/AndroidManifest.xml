@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application android:theme="@style/AppTheme" android:label="OkeyBot" android:allowBackup="false" android:supportsRtl="true">
-        <activity android:name=".ui.CalibrationActivity" android:exported="false"/><activity android:name=".ui.LogActivity" android:exported="false"/><activity android:name=".ui.MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity>
+        <activity android:name=".ui.CalibrationActivity" android:exported="false"/><activity android:name=".ui.LogActivity" android:exported="false"/><activity android:name=".ui.MainActivity" android:exported="true" android:launchMode="singleTop"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity>
         <service android:name=".capture.ProjectionService" android:exported="false" android:foregroundServiceType="mediaProjection" />
         <service android:name=".control.GestureService" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" android:exported="true"><intent-filter><action android:name="android.accessibilityservice.AccessibilityService"/></intent-filter><meta-data android:name="android.accessibilityservice" android:resource="@xml/accessibility_service"/></service>
         <service android:name=".control.StopOverlayService" android:exported="false" />
