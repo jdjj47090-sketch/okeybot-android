@@ -61,7 +61,9 @@ object TileRecognizer {
                 ink.copyTo(numberMask)
                 val colorResult = detectColor(hsvNumbers, colorPixels, blackPixels)
                 val numberResult = matchNumber(numberMask)
-                val tileValue = if (numberResult.first != null && colorResult.first != null && colorResult.second >= MIN_COLOR_CONFIDENCE) Tile(colorResult.first, numberResult.first) else null
+                val number = numberResult.first
+                val tileColor = colorResult.first
+                val tileValue = if (number != null && tileColor != null && colorResult.second >= MIN_COLOR_CONFIDENCE) Tile(tileColor, number) else null
                 return Reading(tileValue, numberResult.second, colorResult.second)
             } finally { hsvNumbers.release() }
         } finally { tile.release(); hsv.release(); numberColorMask.release(); blackMask.release(); numberMask.release() }
