@@ -24,23 +24,28 @@ data class LayoutDetection(
 object LayoutDetector {
     fun detect(rgba: Mat): LayoutDetection {
         if (rgba.empty()) return LayoutDetection()
-        val rgb = Mat(); val hsv = Mat(); val whiteMask = Mat(); val colorMask = Mat(); val kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, Size(3.0, 3.0))
+        val rgb = Mat(); val hsv = Mat(); val whiteMask = Mat(); val kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, Size(3.0, 3.0))
         try {
             Imgproc.cvtColor(rgba, rgb, Imgproc.COLOR_RGBA2RGB)
             Imgproc.cvtColor(rgb, hsv, Imgproc.COLOR_RGB2HSV)
             Core.inRange(hsv, Scalar(0.0, 0.0, 158.0), Scalar(180.0, 108.0, 255.0), whiteMask)
-            Core.inRange(hsv, Scalar(0.0, 78.0, 75.0), Scalar(180.0, 255.0, 255.0), colorMask)
             Imgproc.morphologyEx(whiteMask, whiteMask, Imgproc.MORPH_CLOSE, kernel)
-            Imgproc.morphologyEx(colorMask, colorMask, Imgproc.MORPH_CLOSE, kernel)
             val w = rgba.cols().toFloat(); val h = rgba.rows().toFloat()
             val tileCandidates = rectangles(whiteMask).filter { r ->
                 val rw = r.width() / w; val rh = r.height() / h; val aspect = r.width() / r.height()
                 r.top >= h * 0.52f && rw in 0.018f..0.16f && rh in 0.024f..0.18f && aspect in 0.22f..1.30f
             }
             val rackRow = bestBottomRow(tileCandidates, h)
-            val rackBoxes = rackRow?.sortedBy { it.left }.orEmpty()
+            val rackRows = rackRow?.let { bottom ->
+                val bottomY = bottom.map(RectF::centerY).average().toFloat()
+                val medianTileHeight = bottom.map(RectF::height).sorted()[bottom.size / 2]
+                val upper = tileCandidates.filter { it.centerY() < bottomY && bottomY - it.centerY() <= max(h * 0.18f, medianTileHeight * 1.35f) }
+                (bottom + upper).distinctBy { listOf(it.left.toInt(), it.top.toInt(), it.right.toInt(), it.bottom.toInt()) }
+            }
+            val rackBoxes = rackRows?.sortedWith(compareBy<RectF> { it.centerY() }.thenBy { it.left }).orEmpty()
             val rackBounds = rackBoxes.takeIf { it.size >= MIN_RACK_TILES }?.let(::union)
-            val draw = findDrawCandidate(colorMask, w, h, rackBounds)
+            // In this table layout the stock is a tall stack of ivory tile backs, while the indicator is one face-up tile.
+            val draw = findDrawCandidate(whiteMask, w, h, rackBounds)
             return LayoutDetection(
                 rackBounds = rackBounds,
                 rackTiles = rackBoxes,
@@ -53,7 +58,7 @@ object LayoutDetector {
                     else -> "No confident layout; manual calibration is available"
                 }
             )
-        } finally { rgb.release(); hsv.release(); whiteMask.release(); colorMask.release(); kernel.release() }
+        } finally { rgb.release(); hsv.release(); whiteMask.release(); kernel.release() }
     }
 
     private fun rectangles(mask: Mat): List<RectF> {
@@ -82,13 +87,14 @@ object LayoutDetector {
     private fun findDrawCandidate(mask: Mat, width: Float, height: Float, rack: RectF?): Pair<RectF, Float>? {
         val candidates = rectangles(mask).mapNotNull { r ->
             val rw = r.width() / width; val rh = r.height() / height; val aspect = r.width() / r.height()
-            if (rw !in 0.022f..0.18f || rh !in 0.028f..0.20f || aspect !in 0.22f..1.30f) return@mapNotNull null
-            if (r.centerY() < height * 0.12f || r.centerY() > height * 0.78f) return@mapNotNull null
+            if (rw !in 0.025f..0.15f || rh !in 0.075f..0.34f || aspect !in 0.20f..0.82f) return@mapNotNull null
+            if (r.centerY() < height * 0.12f || r.centerY() > height * 0.72f) return@mapNotNull null
             if (rack != null && r.centerY() > rack.top - height * 0.02f) return@mapNotNull null
-            val centerScore = (1f - abs(r.centerX() / width - 0.5f) * 1.8f).coerceIn(0f, 1f)
-            val boardScore = (1f - abs(r.centerY() / height - 0.44f) * 1.7f).coerceIn(0f, 1f)
-            val aspectScore = exp(-abs(aspect - 0.68f) * 1.2f)
-            r to (0.48f * centerScore + 0.32f * boardScore + 0.20f * aspectScore)
+            val xScore = exp(-abs(r.centerX() / width - 0.63f) * 3.0f)
+            val yScore = exp(-abs(r.centerY() / height - 0.34f) * 3.0f)
+            val aspectScore = exp(-abs(aspect - 0.36f) * 2.2f)
+            val heightScore = exp(-abs(rh - 0.24f) * 4.0f)
+            r to (0.42f * xScore + 0.10f * yScore + 0.25f * aspectScore + 0.23f * heightScore)
         }
         return candidates.maxByOrNull { it.second }?.takeIf { it.second >= DRAW_CONFIDENCE_MIN }
     }
