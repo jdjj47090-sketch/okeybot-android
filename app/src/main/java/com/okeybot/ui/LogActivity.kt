@@ -28,7 +28,8 @@ class LogActivity : Activity() {
     private fun update() {
         val state = ScreenVision.latest
         val layout = ScreenVision.latestLayout
-        log.text = if (ar) "الحالة\n${state.state}\n\nالتفاصيل\n${state.reason}\n\nالبلاطات المكتشفة\n${layout.rackTiles.size}\n\nاقتراح موضع السحب\n${layout.drawPile?.let { "موجود · الثقة ${"%.2f".format(layout.drawConfidence)}" } ?: "غير موجود"}\n\nلا ينفّذ التطبيق حركة قبل اكتمال المعايرة والتعرّف على الشاشة." else "STATE\n${state.state}\n\nDETAILS\n${state.reason}\n\nDETECTED RACK TILES\n${layout.rackTiles.size}\n\nDRAW LOCATION\n${layout.drawPile?.let { "Found · confidence ${"%.2f".format(layout.drawConfidence)}" } ?: "Not found"}\n\nNo move is issued until calibration and screen recognition are complete."
+        val tiles = state.rack.joinToString("  ") { tile -> tile.number?.let { "${tile.color?.first()}$it" } ?: "?" }
+        log.text = if (ar) "الحالة\n${state.state}\n\nالتفاصيل\n${state.reason}\n\nالقطع المكتشفة (${state.rack.size})\n$tiles\n\nقطعة المؤشر\n${state.indicator ?: "غير مقروءة"}\n\nأعلى الرمي\n${state.discardTop ?: "غير مقروء"}\n\nاقتراح كومة السحب\n${layout.drawPile?.let { "موجود · الثقة ${"%.2f".format(layout.drawConfidence)}" } ?: "غير موجود"}\n\nاللعب التلقائي ينتظر التعرّف الموثوق على حالة الدور." else "STATE\n${state.state}\n\nDETAILS\n${state.reason}\n\nRECOGNIZED TILES (${state.rack.size})\n$tiles\n\nINDICATOR\n${state.indicator ?: "Unread"}\n\nTOP DISCARD\n${state.discardTop ?: "Unread"}\n\nDRAW PILE\n${layout.drawPile?.let { "Found · confidence ${"%.2f".format(layout.drawConfidence)}" } ?: "Not found"}\n\nAutomatic play is gated until turn state is recognized."
     }
     override fun onDestroy() { if (ScreenVision.listener != null) ScreenVision.listener = null; super.onDestroy() }
 }

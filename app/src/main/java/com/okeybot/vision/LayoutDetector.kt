@@ -22,7 +22,7 @@ data class LayoutDetection(
 
 /** Game-independent visual proposals. Suggestions are never used to issue gestures by themselves. */
 object LayoutDetector {
-    fun detect(rgba: Mat): LayoutDetection {
+    fun detect(rgba: Mat, calibratedRack: RectF? = null, calibratedDraw: RectF? = null): LayoutDetection {
         if (rgba.empty()) return LayoutDetection()
         val rgb = Mat(); val hsv = Mat(); val whiteMask = Mat(); val kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, Size(3.0, 3.0))
         try {
@@ -31,9 +31,12 @@ object LayoutDetector {
             Core.inRange(hsv, Scalar(0.0, 0.0, 158.0), Scalar(180.0, 108.0, 255.0), whiteMask)
             Imgproc.morphologyEx(whiteMask, whiteMask, Imgproc.MORPH_CLOSE, kernel)
             val w = rgba.cols().toFloat(); val h = rgba.rows().toFloat()
+            val rackPixels = calibratedRack?.let { RectF(it.left * w, it.top * h, it.right * w, it.bottom * h) }
+            val drawPixels = calibratedDraw?.let { RectF(it.left * w, it.top * h, it.right * w, it.bottom * h) }
             val tileCandidates = rectangles(whiteMask).filter { r ->
                 val rw = r.width() / w; val rh = r.height() / h; val aspect = r.width() / r.height()
-                r.top >= h * 0.52f && rw in 0.018f..0.16f && rh in 0.024f..0.18f && aspect in 0.22f..1.30f
+                val inManualRack = rackPixels == null || rackPixels.contains(r.centerX(), r.centerY())
+                r.top >= h * 0.52f && inManualRack && rw in 0.018f..0.16f && rh in 0.024f..0.18f && aspect in 0.22f..1.30f
             }
             val rackRow = bestBottomRow(tileCandidates, h)
             val rackRows = rackRow?.let { bottom ->
@@ -45,7 +48,7 @@ object LayoutDetector {
             val rackBoxes = rackRows?.sortedWith(compareBy<RectF> { it.centerY() }.thenBy { it.left }).orEmpty()
             val rackBounds = rackBoxes.takeIf { it.size >= MIN_RACK_TILES }?.let(::union)
             // In this table layout the stock is a tall stack of ivory tile backs, while the indicator is one face-up tile.
-            val draw = findDrawCandidate(whiteMask, w, h, rackBounds)
+            val draw = drawPixels?.let { it to 1f } ?: findDrawCandidate(whiteMask, w, h, rackBounds)
             return LayoutDetection(
                 rackBounds = rackBounds,
                 rackTiles = rackBoxes,
